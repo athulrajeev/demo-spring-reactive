@@ -1,5 +1,7 @@
 package com.test.reactive.controller;
 
+import java.util.Arrays;
+
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,7 +24,8 @@ public class StudentController {
 
 	@RequestMapping(value = "/list", method = RequestMethod.GET)
 	public Flux<Student> list() {
-		return Flux.just(new Student(20, "Tom"), new Student(20, "Tom"));
+		return Flux.fromIterable(Arrays.asList(new Student(20, "tom"), new Student(21, "tom"), new Student(22, "tom"),
+				new Student(20, "tom")));
 	}
 
 	@RequestMapping(method = RequestMethod.POST)

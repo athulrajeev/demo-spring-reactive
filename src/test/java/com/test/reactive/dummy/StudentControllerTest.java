@@ -3,9 +3,14 @@ package com.test.reactive.dummy;
 import static org.springframework.web.client.reactive.ClientWebRequestBuilders.get;
 import static org.springframework.web.client.reactive.ResponseExtractors.body;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -25,9 +30,11 @@ import okhttp3.mockwebserver.MockWebServer;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class Dummy {
+public class StudentControllerTest {
 
 	private static final MediaType APPLICATION_JSON = MediaType.APPLICATION_JSON;
+	private static final int Min = 0;
+	private static final int Max = 100;
 	private WebClient webClient;
 	private MockWebServer server;
 
@@ -38,6 +45,7 @@ public class Dummy {
 	}
 
 	@Test
+	@Ignore
 	public void test() {
 
 		// Extract as string
@@ -50,6 +58,7 @@ public class Dummy {
 	}
 
 	@Test
+	@Ignore
 	public void postTestReal() {
 
 		Mono<Student> result1 = this.webClient
@@ -63,6 +72,7 @@ public class Dummy {
 	}
 
 	@Test
+	@Ignore
 	public void shouldGetJsonAsMonoOfPojo() throws Exception {
 
 		okhttp3.HttpUrl baseUrl = server.url("/pojo");
@@ -79,6 +89,7 @@ public class Dummy {
 	}
 
 	@Test
+	@Ignore
 	public void getTest() throws JsonProcessingException {
 		// Extract as string
 
@@ -99,6 +110,7 @@ public class Dummy {
 	}
 
 	@Test
+	@Ignore
 	public void shouldPostPojoAsJson() throws Exception {
 
 		okhttp3.HttpUrl baseUrl = server.url("/pojo/capitalize");
@@ -118,6 +130,7 @@ public class Dummy {
 	}
 
 	@Test
+	@Ignore
 	public void fluxTest() throws InterruptedException {
 
 		CountDownLatch latch = new CountDownLatch(1);
@@ -126,22 +139,87 @@ public class Dummy {
 				.perform(get("http://localhost:8080/students/list").accept(APPLICATION_JSON))
 				.extract(ResponseExtractors.bodyStream(Student.class));
 
-		result.subscribe(new Subscriber<Student>() {
+		/*
+		 * result.subscribe(new Subscriber<Student>() { private Subscription s;
+		 * @Override public void onSubscribe(Subscription s) { this.s=s; s.request(1); }
+		 * @Override public void onNext(Student t) { s.request(1); System.out.println("Time--->"+new
+		 * Date(System.currentTimeMillis())+"-->" + t.toString()); }
+		 * @Override public void onError(Throwable t) { System.out.println("I am in error"); latch.countDown(); }
+		 * @Override public void onComplete() { System.out.println("I am complete"); latch.countDown(); } });
+		 */
+
+		Iterator<Student> itr = result.toIterable().iterator();
+
+		while (itr.hasNext()) {
+
+			System.out.println("Time--->" + new Date(System.currentTimeMillis()) + "-->" + itr.next());
+		}
+
+		// latch.await();
+
+	}
+
+	@Test
+	@Ignore
+	public void shouldGetJsonAsFluxOfPojos() throws Exception {
+
+		CountDownLatch latch = new CountDownLatch(1);
+
+		HttpUrl baseUrl = server.url("/pojos");
+		this.server
+				.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody(jsonStudentString()));
+
+		Flux<Student> result = this.webClient.perform(get(baseUrl.toString()).accept(MediaType.APPLICATION_JSON))
+				.extract(ResponseExtractors.bodyStream(Student.class));
+
+		Subscriber<Student> subscriber = new Subscriber<Student>() {
+
+			Subscription s;
 
 			@Override
 			public void onSubscribe(Subscription s) {
-				s.request(Long.MAX_VALUE);
+				this.s = s;
+				s.request(1);
 			}
 
 			@Override
 			public void onNext(Student t) {
 				System.out.println(t.toString());
+				s.request(1);
 			}
 
 			@Override
 			public void onError(Throwable t) {
 				System.out.println("I am in error");
 				latch.countDown();
+			}
+
+			@Override
+			public void onComplete() {
+				System.out.println("I am complete");
+				latch.countDown();
+			}
+		};
+
+		Mono<List<Student>> mono = result.collectList();
+		mono.subscribe(new Subscriber<List<Student>>() {
+
+			@Override
+			public void onSubscribe(Subscription s) {
+				s.request(Long.MAX_VALUE);
+
+			}
+
+			@Override
+			public void onNext(List<Student> t) {
+				t.stream().forEach(System.out::println);
+			}
+
+			@Override
+			public void onError(Throwable t) {
+				System.out.println("I am in error");
+				latch.countDown();
+
 			}
 
 			@Override
@@ -153,60 +231,10 @@ public class Dummy {
 		});
 
 		latch.await();
-
 	}
 
 	@Test
-	public void shouldGetJsonAsFluxOfPojos() throws Exception {
-
-		CountDownLatch latch = new CountDownLatch(1);
-
-		HttpUrl baseUrl = server.url("/pojos");
-		this.server.enqueue(new MockResponse().setHeader("Content-Type", "application/json")
-				.setBody("[{\"bar\":\"bar1\",\"foo\":\"foo1\"},{\"bar\":\"bar2\",\"foo\":\"foo2\"}]"));
-
-		Flux<Pojo> result = this.webClient.perform(get(baseUrl.toString()).accept(MediaType.APPLICATION_JSON))
-				.extract(ResponseExtractors.bodyStream(Pojo.class));
-
-		
-		
-		Subscriber<Pojo> subscriber=  new Subscriber<Pojo>() {
-
-			private Subscription s;
-			
-			@Override
-			public void onSubscribe(Subscription s) {
-				this.s=s;
-				s.request(1);
-			}
-
-			@Override
-			public void onNext(Pojo t) {
-				System.out.println(t.toString());
-				//s.cancel();
-				//latch.countDown();
-			}
-
-			@Override
-			public void onError(Throwable t) {
-				System.out.println("I am in error");
-				latch.countDown();
-			}
-
-			@Override
-			public void onComplete() {
-				System.out.println("I am complete");
-				latch.countDown();
-			}
-
-		};
-		
-		result.subscribe(subscriber);
-		
-		latch.await();
-	}
-
-	@Test
+	@Ignore
 	public void postTestRealMono() {
 
 		Mono<Student> result1 = this.webClient.perform(
@@ -218,5 +246,39 @@ public class Dummy {
 
 		System.out.println(str1.toString());
 	}
+
+	private String jsonStudentString() throws JsonProcessingException {
+
+		List<Student> list = new ArrayList<>();
+
+		for (int i = 0; i < 30; i++) {
+			list.add(new Student(i, "Tom" + i));
+		}
+
+		ObjectMapper mapper = new ObjectMapper();
+
+		System.out.println(mapper.writeValueAsString(list));
+
+		return mapper.writeValueAsString(list);
+	}
+
+	Flux<Student> fluxStudent = Flux.create(emitter -> {
+
+		for (int i = 0; i < 300; i++) {
+
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			System.out.println("I am emitting new student-->" + new Date(System.currentTimeMillis()));
+			emitter.next(new Student(i, "i"));
+		}
+
+		System.out.println("I am complete" + new Date(System.currentTimeMillis()));
+		emitter.complete();
+	});
 
 }

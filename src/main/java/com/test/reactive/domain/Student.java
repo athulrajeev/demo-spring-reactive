@@ -35,5 +35,4 @@ public class Student {
 	public String toString() {
 		return "Student [age=" + age + ", name=" + name + "]";
 	}
-
 }
